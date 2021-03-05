@@ -12,7 +12,7 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
-import {isDirective} from './directive.js';
+import {isDirective, PartType} from '../directive-helpers.js';
 import {removeNodes} from './dom.js';
 import {noChange, nothing, Part} from './part.js';
 import {RenderOptions} from './render-options.js';
@@ -118,15 +118,57 @@ export class AttributeCommitter {
   }
 }
 
+type Interface<T> = {
+  [P in keyof T]: T[P]
+};
+
+/**
+ * This is for Lit2 forwards compatibility. Do not import this type directly
+ * but rather import the individual parts.
+ *
+ * @example
+ *
+ * class MyAttributeDirective extends Directive {
+ *   update(part: ChildPart, args: unkown[]) {
+ *     // note the use of ChildPart rather than NextPart. Additionally
+ *     // the use of ChildPart over NodePart as Lit2 no longer includes NodePart
+ *     ...
+ *   }
+ *   render(value: string) {
+ *     ...
+ *   }
+ * }
+ */
+export type NextPart = Interface<AttributePart>|Interface<ChildPart>|
+    Interface<EventPart>|Interface<BooleanAttributePart>;
+
 /**
  * A Part that controls all or part of an attribute value.
  */
-export class AttributePart implements Part {
+export class AttributePart implements Part, NextAttributePart {
   readonly committer: AttributeCommitter;
+  readonly legacyPart: AttributePart|PropertyPart;
   value: unknown = undefined;
 
-  constructor(committer: AttributeCommitter) {
-    this.committer = committer;
+  constructor(committerOrPart: AttributeCommitter|AttributePart|
+    PropertyPart) {
+    if (committerOrPart instanceof AttributeCommitter) {
+      // lit 1 implementation
+      this.committer = committerOrPart;
+      this.type = PartType.PROPERTY;
+      this.legacyPart = {} as unknown as PropertyPart;
+      return;
+    }
+
+    // Lit2 implementation
+    this.committer = {} as unknown as AttributeCommitter;
+    this.legacyPart = committerOrPart;
+
+    if (committerOrPart instanceof PropertyPart) {
+      this.type = PartType.PROPERTY;
+    } else {
+      this.type = PartType.ATTRIBUTE;
+    }
   }
 
   setValue(value: unknown): void {
@@ -151,6 +193,64 @@ export class AttributePart implements Part {
       return;
     }
     this.committer.commit();
+  }
+
+  // Lit2 implementation is below
+  readonly type: typeof PartType.ATTRIBUTE|typeof PartType.PROPERTY;
+
+  get options(): RenderOptions|undefined {
+    return undefined;
+  }
+  get name(): string {
+    return this.legacyPart.committer.name;
+  }
+
+  get element(): Element {
+    return this.legacyPart.committer.element;
+  }
+
+  /**
+   * If this attribute part represents an interpolation, this contains the
+   * static strings of the interpolation. For single-value, complete bindings,
+   * this is undefined.
+   */
+  get strings(): readonly string[] {
+    return this.legacyPart.committer.strings;
+  }
+  get tagName(): string {
+    return this.element.tagName;
+  }
+}
+
+type ValueOf<T> = T[keyof T];
+interface NextPartInterface<T extends Part,
+                                      U extends ValueOf<typeof PartType>> {
+  readonly type: U;
+  readonly options: RenderOptions|undefined;
+  readonly legacyPart: T;
+}
+
+interface NextNodePart<STRINGS = readonly string[]> {
+  readonly element: Element;
+  readonly strings: STRINGS;
+  readonly tagName: string;
+  readonly name: string;
+}
+
+type NextAttributePart = NextNodePart&NextPartInterface<
+    AttributePart|PropertyPart,
+    typeof PartType.ATTRIBUTE|typeof PartType.PROPERTY>;
+
+export class ChildPart implements
+    NextPartInterface<NodePart, typeof PartType.CHILD> {
+  readonly type = PartType.CHILD;
+  readonly options: RenderOptions|undefined;
+  constructor(readonly legacyPart: NodePart) {
+    this.options = legacyPart.options;
+  }
+
+  get parentNode(): Node {
+    return this.legacyPart.startNode.parentNode!;
   }
 }
 
@@ -364,21 +464,34 @@ export class NodePart implements Part {
  * If the value is truthy, then the attribute is present with a value of
  * ''. If the value is falsey, the attribute is removed.
  */
-export class BooleanAttributePart implements Part {
+export class BooleanAttributePart implements Part, NextBooleanAttributePart {
   readonly element: Element;
   readonly name: string;
   readonly strings: readonly string[];
   value: unknown = undefined;
   private __pendingValue: unknown = undefined;
 
-  constructor(element: Element, name: string, strings: readonly string[]) {
-    if (strings.length !== 2 || strings[0] !== '' || strings[1] !== '') {
+  constructor(
+      elementOrLegacyPart: Element|BooleanAttributePart, name?: string,
+      strings?: readonly string[]) {
+    if (elementOrLegacyPart instanceof BooleanAttributePart) {
+      // Lit 2 implementation
+      this.legacyPart = elementOrLegacyPart;
+      this.element = elementOrLegacyPart.element;
+      this.name = elementOrLegacyPart.name;
+      this.strings = elementOrLegacyPart.strings;
+      return;
+    }
+    // lit 1 implementation
+    if (strings!.length !== 2 || strings![0] !== '' || strings![1] !== '') {
       throw new Error(
           'Boolean attributes can only contain a single expression');
     }
-    this.element = element;
-    this.name = name;
-    this.strings = strings;
+
+    this.element = elementOrLegacyPart;
+    this.legacyPart = {} as unknown as BooleanAttributePart;
+    this.name = name!;
+    this.strings = strings!;
   }
 
   setValue(value: unknown): void {
@@ -405,7 +518,22 @@ export class BooleanAttributePart implements Part {
     }
     this.__pendingValue = noChange;
   }
+
+  // Lit 2 implementation below
+  readonly type = PartType.BOOLEAN_ATTRIBUTE;
+  readonly legacyPart: BooleanAttributePart;
+
+  get options(): RenderOptions|undefined {
+    return undefined;
+  }
+
+  get tagName() {
+    return this.element.tagName;
+  }
 }
+
+type NextBooleanAttributePart = NextNodePart&
+    NextPartInterface<BooleanAttributePart, typeof PartType.BOOLEAN_ATTRIBUTE>;
 
 /**
  * Sets attribute values for PropertyParts, so that the value is only set once
@@ -474,7 +602,7 @@ let eventOptionsSupported = false;
 
 type EventHandlerWithOptions =
     EventListenerOrEventListenerObject&Partial<AddEventListenerOptions>;
-export class EventPart implements Part {
+export class EventPart implements Part, NextEventPart {
   readonly element: Element;
   readonly eventName: string;
   readonly eventContext?: EventTarget;
@@ -483,11 +611,27 @@ export class EventPart implements Part {
   private __pendingValue: undefined|EventHandlerWithOptions = undefined;
   private readonly __boundHandleEvent: (event: Event) => void;
 
-  constructor(element: Element, eventName: string, eventContext?: EventTarget) {
-    this.element = element;
-    this.eventName = eventName;
-    this.eventContext = eventContext;
-    this.__boundHandleEvent = (e) => this.handleEvent(e);
+  constructor(
+      elementOrLegacyPart: Element|EventPart, eventName?: string,
+      eventContext?: EventTarget) {
+    // lit next implementation
+    if (elementOrLegacyPart instanceof EventPart) {
+      this.legacyPart = elementOrLegacyPart;
+      this.element = this.legacyPart.element;
+      this.eventName = '';
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      this.__boundHandleEvent = () => {};
+      return;
+    } else {
+      // lit 1 implementation
+      this.element = elementOrLegacyPart;
+      this.legacyPart = {} as unknown as EventPart;
+      this.eventName = eventName!;
+      this.eventContext = eventContext;
+      this.__boundHandleEvent = (e) => {
+        this.handleEvent(e);
+      };
+    }
   }
 
   setValue(value: undefined|EventHandlerWithOptions): void {
@@ -534,6 +678,34 @@ export class EventPart implements Part {
       (this.value as EventListenerObject).handleEvent(event);
     }
   }
+
+  // Lit 2 implementation is below
+  readonly type = PartType.EVENT;
+  readonly legacyPart;
+  get options(): RenderOptions|undefined {
+    return undefined;
+  }
+  get name(): string {
+    return this.legacyPart.eventName;
+  }
+
+  /**
+   * If this attribute part represents an interpolation, this contains the
+   * static strings of the interpolation. For single-value, complete bindings,
+   * this is undefined.
+   */
+  get strings() {
+    return undefined
+  }
+  get tagName() {
+    return this.element.tagName;
+  }
+}
+
+interface NextEventPart extends
+    NextNodePart<undefined>,
+    NextPartInterface<EventPart, typeof PartType.EVENT> {
+  handleEvent: (event: Event) => void;
 }
 
 // We copy options because of the inconsistent behavior of browsers when reading
