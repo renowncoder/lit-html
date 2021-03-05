@@ -12,11 +12,11 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
- import {Directive, PartInfo} from './directive.js';
- import {Part} from './lib/part.js';
- import {AttributePart, BooleanAttributePart, EventPart, NextPart, NodePart, PropertyPart} from './lib/parts.js';
+import {Directive, PartInfo} from './directive.js';
+import {Part} from './lib/part.js';
+import {AttributePart, BooleanAttributePart, EventPart, NextPart, NodePart, PropertyPart} from './lib/parts.js';
 
- /**
+/**
  * A superclass for directives that need to asynchronously update.
  */
 export abstract class AsyncDirective extends Directive {
@@ -28,7 +28,7 @@ export abstract class AsyncDirective extends Directive {
     this.ddPart = (partInfo as NextPart).legacyPart;
   }
 
-  private ddGetNode(): Node | undefined {
+  private ddGetNode(): Node|undefined {
     if (this.ddPart instanceof NodePart) {
       return this.ddPart.startNode;
     } else if (this.ddPart instanceof EventPart) {
@@ -67,16 +67,19 @@ export abstract class AsyncDirective extends Directive {
   }
 
   /**
-   * User callbacks for implementing logic to release any resources/subscriptions
-   * that may have been retained by this directive. Since directives may also be
-   * re-connected, `reconnected` should also be implemented to restore the
-   * working state of the directive prior to the next render.
+   * User callbacks for implementing logic to release any
+   * resources/subscriptions that may have been retained by this directive.
+   * Since directives may also be re-connected, `reconnected` should also be
+   * implemented to restore the working state of the directive prior to the next
+   * render.
    *
    * In the v1 version of these APIs, we don't monitor for disconnection and
    * reconnection, we only call these methods when setValue is called.
    */
   // eslint-disable-next-line @typescript-eslint/no-empty-function
-  protected disconnected() {}
+  protected disconnected() {
+  }
   // eslint-disable-next-line @typescript-eslint/no-empty-function
-  protected reconnected() {}
+  protected reconnected() {
+  }
 }

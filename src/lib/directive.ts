@@ -12,11 +12,11 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
- import {directives, PartType} from '../directive-helpers.js';
- import {Part} from './part.js';
- import {AttributePart, BooleanAttributePart, ChildPart, EventPart, NextPart, NodePart, PropertyPart} from './parts.js';
+import {directives, PartType} from '../directive-helpers.js';
+import {Part} from './part.js';
+import {AttributePart, BooleanAttributePart, ChildPart, EventPart, NextPart, NodePart, PropertyPart} from './parts.js';
 
- export {DirectiveFn, isDirective, PartType} from '../directive-helpers.js';
+export {DirectiveFn, isDirective, PartType} from '../directive-helpers.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 // eslint-disable-next-line @typescript-eslint/ban-types
@@ -62,124 +62,125 @@ export type DirectiveFactory = (...args: any[]) => object;
  *   }
  * });
  */
- export const directive =
- <F extends DirectiveFactory>(factoryOrClass: F|DirectiveClass): F => {
-   if (isDirectiveClass(factoryOrClass)) {
-     return litNextDirective(factoryOrClass) as F;
-   } else {
-     return ((...args: unknown[]) => {
-              const d = factoryOrClass(...args);
-              directives.set(d, true);
-              return d;
-            }) as F;
-   }
- };
+export const directive =
+    <F extends DirectiveFactory>(factoryOrClass: F|DirectiveClass): F => {
+      if (isDirectiveClass(factoryOrClass)) {
+        return litNextDirective(factoryOrClass) as F;
+      } else {
+        return ((...args: unknown[]) => {
+                 const d = factoryOrClass(...args);
+                 directives.set(d, true);
+                 return d;
+               }) as F;
+      }
+    };
 
 // Everything below this is for Lit 2 forwards compatibility
 
 const isDirectiveClass = (factoryOrClass: DirectiveFactory|
-                       DirectiveClass): factoryOrClass is DirectiveClass => {
-const isClass =
-   !!(factoryOrClass as unknown as typeof Directive)._$isDirectiveClass$;
-return isClass;
+                          DirectiveClass): factoryOrClass is DirectiveClass => {
+  const isClass =
+      !!(factoryOrClass as unknown as typeof Directive)._$isDirectiveClass$;
+  return isClass;
 };
 
 export type AttributePartInfo = {
-readonly type: typeof PartType.ATTRIBUTE|
-            typeof PartType.PROPERTY|
-            typeof PartType.BOOLEAN_ATTRIBUTE|typeof PartType.EVENT;
-readonly strings?: ReadonlyArray<string>; readonly name: string; readonly tagName:
-                                                                             string;
+  readonly type: typeof PartType.ATTRIBUTE|
+               typeof PartType.PROPERTY|
+               typeof PartType.BOOLEAN_ATTRIBUTE|typeof PartType.EVENT;
+  readonly strings?: ReadonlyArray<string>; readonly name: string; readonly tagName:
+                                                                                string;
 };
 
 export type ChildPartInfo = {
-readonly type: typeof PartType.CHILD;
+  readonly type: typeof PartType.CHILD;
 };
 
 /**
-* Base class for creating custom directives. Users should extend this class,
-* implement `render` and/or `update`, and then pass their subclass to
-* `directive`.
-*/
+ * Base class for creating custom directives. Users should extend this class,
+ * implement `render` and/or `update`, and then pass their subclass to
+ * `directive`.
+ */
 export abstract class Directive {
-/**
-* @nocollapse
-* @internal
-*/
-static readonly _$isDirectiveClass$ = true;
-// eslint-disable-next-line @typescript-eslint/no-empty-function
-constructor(_partInfo: PartInfo) {}
-abstract render(...props: Array<unknown>): unknown;
-update(_part: NextPart, props: Array<unknown>): unknown {
- return this.render(...props);
-}
+  /**
+   * @nocollapse
+   * @internal
+   */
+  static readonly _$isDirectiveClass$ = true;
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  constructor(_partInfo: PartInfo) {
+  }
+  abstract render(...props: Array<unknown>): unknown;
+  update(_part: NextPart, props: Array<unknown>): unknown {
+    return this.render(...props);
+  }
 }
 
 export type DirectiveClass = {
-new (part: PartInfo): Directive;
+  new (part: PartInfo): Directive;
 };
 
 /**
-* This utility type extracts the signature of a directive class's render()
-* method so we can use it for the type of the generated directive function.
-*/
+ * This utility type extracts the signature of a directive class's render()
+ * method so we can use it for the type of the generated directive function.
+ */
 export type DirectiveParameters<C extends Directive> = Parameters<C['render']>;
 
 /**
-* A generated directive function doesn't evaluate the directive, but just
-* returns a DirectiveResult object that captures the arguments.
-*/
+ * A generated directive function doesn't evaluate the directive, but just
+ * returns a DirectiveResult object that captures the arguments.
+ */
 export type DirectiveResult<C extends DirectiveClass = DirectiveClass> = {
-/** @internal */
-_$litDirective$: C;
-/** @internal */
-values: DirectiveParameters<InstanceType<C>>;
+  /** @internal */
+  _$litDirective$: C;
+  /** @internal */
+  values: DirectiveParameters<InstanceType<C>>;
 };
 
 /**
-* Information about the part a directive is bound to.
-*
-* This is useful for checking that a directive is attached to a valid part,
-* such as with directive that can only be used on attribute bindings.
-*/
+ * Information about the part a directive is bound to.
+ *
+ * This is useful for checking that a directive is attached to a valid part,
+ * such as with directive that can only be used on attribute bindings.
+ */
 export type PartInfo = ChildPartInfo|AttributePartInfo;
 
 // Converts Lit1 part to a Lit2 part
 function legacyPartToPart(part: Part): NextPart {
-if (part instanceof NodePart) {
- return new ChildPart(part);
-} else if (part instanceof EventPart) {
- return new EventPart(part);
-} else if (part instanceof BooleanAttributePart) {
- return new BooleanAttributePart(part);
-} else if (part instanceof PropertyPart || part instanceof AttributePart) {
- return new AttributePart(part);
-}
-// ElementPartInfo doesn't exist in lit-html v1
-throw new Error(`Unknown part type`);
+  if (part instanceof NodePart) {
+    return new ChildPart(part);
+  } else if (part instanceof EventPart) {
+    return new EventPart(part);
+  } else if (part instanceof BooleanAttributePart) {
+    return new BooleanAttributePart(part);
+  } else if (part instanceof PropertyPart || part instanceof AttributePart) {
+    return new AttributePart(part);
+  }
+  // ElementPartInfo doesn't exist in lit-html v1
+  throw new Error(`Unknown part type`);
 }
 
 // Lit2 implementation of the directive fn
 function litNextDirective<C extends DirectiveClass>(directiveClass: C) {
-const partToInstance =
-   new WeakMap<Part, readonly[NextPart, InstanceType<C>]>();
-const result = directive((...props: unknown[]) => {
- return (part: Part) => {
-   const cached = partToInstance.get(part);
-   let modernPart, instance;
-   if (cached === undefined) {
-     modernPart = legacyPartToPart(part);
-     instance = new directiveClass(modernPart) as InstanceType<C>;
-     partToInstance.set(part, [modernPart, instance] as const);
-   } else {
-     modernPart = cached[0];
-     instance = cached[1];
-   }
-   part.setValue(instance.update(modernPart, props));
-   part.commit();
- };
-});
+  const partToInstance =
+      new WeakMap<Part, readonly[NextPart, InstanceType<C>]>();
+  const result = directive((...props: unknown[]) => {
+    return (part: Part) => {
+      const cached = partToInstance.get(part);
+      let modernPart, instance;
+      if (cached === undefined) {
+        modernPart = legacyPartToPart(part);
+        instance = new directiveClass(modernPart) as InstanceType<C>;
+        partToInstance.set(part, [modernPart, instance] as const );
+      } else {
+        modernPart = cached[0];
+        instance = cached[1];
+      }
+      part.setValue(instance.update(modernPart, props));
+      part.commit();
+    };
+  });
 
-return result as (...props: DirectiveParameters<InstanceType<C>>) =>
-          (part: Part) => void;
+  return result as (...props: DirectiveParameters<InstanceType<C>>) =>
+             (part: Part) => void;
 }

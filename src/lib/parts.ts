@@ -150,8 +150,7 @@ export class AttributePart implements Part, NextAttributePart {
   readonly legacyPart: AttributePart|PropertyPart;
   value: unknown = undefined;
 
-  constructor(committerOrPart: AttributeCommitter|AttributePart|
-    PropertyPart) {
+  constructor(committerOrPart: AttributeCommitter|AttributePart|PropertyPart) {
     if (committerOrPart instanceof AttributeCommitter) {
       // lit 1 implementation
       this.committer = committerOrPart;
