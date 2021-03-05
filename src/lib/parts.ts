@@ -681,7 +681,7 @@ export class EventPart implements Part, NextEventPart {
 
   // Lit 2 implementation is below
   readonly type = PartType.EVENT;
-  readonly legacyPart;
+  readonly legacyPart: EventPart;
   get options(): RenderOptions|undefined {
     return undefined;
   }

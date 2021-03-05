@@ -108,9 +108,9 @@ export abstract class Directive {
 */
 static readonly _$isDirectiveClass$ = true;
 // eslint-disable-next-line @typescript-eslint/no-empty-function
-constructor(partInfo: PartInfo) {}
+constructor(_partInfo: PartInfo) {}
 abstract render(...props: Array<unknown>): unknown;
-update(part: NextPart, props: Array<unknown>): unknown {
+update(_part: NextPart, props: Array<unknown>): unknown {
  return this.render(...props);
 }
 }
