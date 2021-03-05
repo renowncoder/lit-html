@@ -24,6 +24,8 @@ import * as LitHtml from '../lit-html.js';
 
 const assert = chai.assert;
 
+const directiveIgnoredExports = ['Directive', 'DirectiveClass', 'PartType'];
+
 suite('index.js', () => {
   test('html tag returns a TemplateResult', () => {
     assert.instanceOf(LitHtml.html``, LibTemplateResult.TemplateResult);
@@ -65,6 +67,9 @@ suite('index.js', () => {
 
   test('exports everything from lib/directive.js', () => {
     Object.keys(LibDirective).forEach((key) => {
+      if (directiveIgnoredExports.includes(key)) {
+        return;
+      }
       assert.property(LitHtml, key);
     });
   });
